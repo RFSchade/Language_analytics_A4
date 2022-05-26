@@ -1,0 +1,11 @@
+tensorflow==2.9.0
+pandas==1.3.2
+tqdm==4.62.0
+numpy==1.21.2
+scikit-learn==1.1.0
+spacy==3.3.0
+matplotlib==3.4.3
+regex==2021.8.3
+contractions==0.1.72
+bs4==0.0.1
+nltk==3.7

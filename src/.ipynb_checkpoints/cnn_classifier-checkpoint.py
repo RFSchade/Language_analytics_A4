@@ -33,6 +33,9 @@ from sklearn.metrics import (confusion_matrix,
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import train_test_split
 
+# User-experience
+import argparse
+
 # visualisations 
 import matplotlib.pyplot as plt
 
@@ -42,19 +45,17 @@ np.random.seed(seed)
 
 #=====> Define global variabes
 # Max sequence length
-MX_SEQUENCE_LENGTH = 1000 
+MX_SEQUENCE_LENGTH = 500
 # Number of dimentions for embeddings 
 EMBED_SIZE = 300
-# Number of epochs
-EPOCHS = 2
 # Batch size
 BATCH_SIZE = 128
 
 #=====> Define functions
 # > Load data 
-def prep_data():
+def prep_data(split):
     # Print info 
-    print("[info] Loading data...")
+    print("[INFO] Loading data...")
     # Load data 
     filepath = os.path.join("in", "VideoCommentsThreatCorpus.csv")
     data = pd.read_csv(filepath)
@@ -68,11 +69,10 @@ def prep_data():
     # Splitting data 
     X_train, X_test, y_train, y_test = train_test_split(X, # data
                                                         y, # labels
-                                                        test_size=0.2, # 80-20% split
+                                                        test_size=split,
                                                         random_state=42) # Set seed
     # Print info
-    print("[info] Data loaded")
-    print("[info] Training data = 80%, Test data = 20%")
+    print("[INFO] Data loaded")
     
     return (X_train, X_test, y_train, y_test)
 
@@ -93,16 +93,13 @@ def tokenize(X_train, X_test):
     X_test_seqs = t.texts_to_sequences(X_test)
     
     # Defining vocabulary size 
-    # (This is capitlized, so it is supposed to be a global variable) 
-    # (But it needs the object "t" for defenition)
-    # (should I decapitalize it? or can I somwhow still define it in the beggining?)
-    VOCAB_SIZE = len(t.word_index)
+    vocab_size = len(t.word_index)
     
     # Print info 
-    print(f"[INFO] Vocabulary size = {len(t.word_index)}")
+    print(f"[INFO] Vocabulary size = {vocab_size}")
     print(f"[INFO] Number of documents/sequences = {t.document_count}")
     
-    return (X_train_seqs, X_test_seqs, VOCAB_SIZE)
+    return (X_train_seqs, X_test_seqs, vocab_size)
 
 # > Normalize sequences
 def normalize(X_train_seqs, X_test_seqs, y_train, y_test):
@@ -168,7 +165,6 @@ def build_model(VOCAB_SIZE, EMBED_SIZE, MX_SEQUENCE_LENGTH):
     return model
     
 # > Evaluate model
-# > Evaluate model
 def evaluate(model, X_test_pad, y_test_lb):
     # evaluate nertwork with 0.5 decision boundary
     predictions = (model.predict(X_test_pad) > 0.5).astype("int32")
@@ -189,21 +185,79 @@ def evaluate(model, X_test_pad, y_test_lb):
     with open(outpath, "w") as f:
         f.write(report)
 
+# > Plot history
+def plot_history(H, epochs):
+    plt.style.use("seaborn-colorblind")
+
+    plt.figure(figsize=(12,6))
+    plt.subplot(1,2,1)
+    plt.plot(np.arange(0, epochs), H.history["loss"], label="train_loss")
+    plt.plot(np.arange(0, epochs), H.history["val_loss"], label="val_loss", linestyle=":")
+    plt.title("Loss curve")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.tight_layout()
+    plt.legend()
+
+    plt.subplot(1,2,2)
+    plt.plot(np.arange(0, epochs), H.history["accuracy"], label="train_acc")
+    plt.plot(np.arange(0, epochs), H.history["val_accuracy"], label="val_acc", linestyle=":")
+    plt.title("Accuracy curve")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.tight_layout()
+    plt.legend()
+    # Saving image
+    plt.savefig(os.path.join("output", "history_img.png"))
+
+# > Parse arguments
+def parse_args(): 
+    # Initialize argparse
+    ap = argparse.ArgumentParser()
+    # Commandline parameters 
+    ap.add_argument("-s", "--split", 
+                    required=False, 
+                    type=float,
+                    help="Proportion of the data that goes into the test dataset - default is 0.2", 
+                    default=0.2)
+    ap.add_argument("-e", "--epochs", 
+                    required=False, 
+                    type=int,
+                    help="Nr. of epochs for the CNN to run - default is 10", 
+                    default= 10)
+    # Parse argument
+    args = vars(ap.parse_args())
+    # return list of argumnets 
+    return args
+
 #=====> Define main()
 def main():
-    (X_train, X_test, y_train, y_test) = prep_data()
-    (X_train_seqs, X_test_seqs, VOCAB_SIZE) = tokenize(X_train, X_test)
-    (X_train_pad, X_test_pad, y_train_lb, y_test_lb) = normalize(X_train_seqs, X_test_seqs, y_train, y_test)
-    model = build_model(VOCAB_SIZE, EMBED_SIZE, MX_SEQUENCE_LENGTH)
+    # Get argument
+    args = parse_args()
     
-    # Fitting
+    # Loading and preparing data
+    (X_train, X_test, y_train, y_test) = prep_data(args["split"])
+    # Tokenize data
+    (X_train_seqs, X_test_seqs, vocab_size) = tokenize(X_train, X_test)
+    # Normalize data 
+    (X_train_pad, X_test_pad, y_train_lb, y_test_lb) = normalize(X_train_seqs, X_test_seqs, y_train, y_test)
+    # Build model
+    model = build_model(vocab_size, EMBED_SIZE, MX_SEQUENCE_LENGTH)
+    
+    # Fit model to data
     history = model.fit(X_train_pad, y_train,
-                       epochs = EPOCHS,
+                       epochs = args["epochs"],
                        batch_size = BATCH_SIZE,
                        validation_split = 0.1, # second validation split  
                        verbose = True)
-    # Reporting
+    # Report metrics
     evaluate(model, X_test_pad, y_test_lb)
+    
+    # Plot history
+    plot_history(history, args["epochs"])
+    
+    # Print info
+    print("[INFO] Job complete")
 
 # Run main() function from terminal only
 if __name__ == "__main__":
