@@ -29,7 +29,7 @@ requirements.txt: txt file containing the modules required to run the code
 ## Usage
 Modules listed in requirements.txt should be installed before scripts are run.    
 __Input data__    
-The input data for both scripts should be a csv file containing at leas two colums. One named "text" containing the text to be analyzed, and one named "label" containing the label fo the text, either "Toxic" or "Nontoxic".
+The input data for both scripts should be a csv file containing at leas two colums. One named "text" containing the text to be analyzed, and one named "label" containing the label fo the text, either "Toxic" or "Nontoxic".    
 __cnn_classifier.py__    
 To classify the data using a CNN, run cnn_classifier.py from the Language_analytics_A4 repository folder. The script has two arguments:    
 -	_-s or --split: Proportion of the data that goes into the test dataset - default is 0.2_    
